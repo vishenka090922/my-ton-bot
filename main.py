@@ -36,7 +36,7 @@ while True:
                     price = int(sale['price']) / 10**9
                     addr = item['address']
                     
-                    if 4.0 <= price <= 8.0 and addr not in seen_items:
+                    if 4.0 <= price <= 100.0 and addr not in seen_items:
                         name = item.get('metadata', {}).get('name', 'Telegram Gift')
                         status = f"✅ НАЙДЕН ЛОТ\n📦 {name}\n💰 Цена: {price} TON"
                         send_msg(status, addr)
