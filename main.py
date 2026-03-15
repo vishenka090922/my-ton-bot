@@ -1,18 +1,17 @@
 import asyncio
 import aiohttp
+import json
+import urllib.parse
 from aiogram import Bot, Dispatcher
-from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
 
 # ================= НАСТРОЙКИ =================
 TOKEN = "8753959037:AAGqeA55UteuX6nc6i3W9lsqzT8IZ2quoi0"
-MY_ID =  8014629371 # Твой ID в Telegram
+MY_ID = 8014629371 # Твой ID цифрами
 TONAPI_KEY = "AHN54X4JUOBUMUQAAAAFZM7B77G4OYWHOBW5XLORTEBJXXD2HYJQVNDF5KLSDUUHSLFFN5Y"
 
-# МОДУЛЬНАЯ СТРУКТУРА КОЛЛЕКЦИЙ
-# Легко добавлять новые: просто впиши адрес, тип и максимальную цену
-COLLECTIONS = {
-    "EQCA14o1-V_6V7IInW57S7x1yX4Kde000000000000000000": {
+# Инициализируем бота максимально просто
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
         "name": "Telegram Gifts", 
         "type": "nft", 
         "max_price": 50.0
