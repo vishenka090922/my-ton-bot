@@ -4,8 +4,10 @@ import urllib.request, json, time, urllib.parse
 TOKEN = "8753959037:AAGqeA55UteuX6nc6i3W9lsqzT8IZ2quoi0"
 MY_ID = 8014629371 # Твой ID цифрами
 API_KEY = "AHN54X4JUOBUMUQAAAAFZM7B77G4OYWHOBW5XLORTEBJXXD2HYJQVNDF5KLSDUUHSLFFN5Y"
-MAX_PRICE_GIFT = 10.0  
-MAX_PRICE_NUM = 15.0   
+
+MIN_PRICE = 4.0   # Минимальная цена
+MAX_PRICE = 80.0  # Максимальная цена
+
 MONO = {
     "Duck": "Yellow", "Skull": "Gray", "Santa": "Red",
     "Alien": "Green", "Lollipop": "Pink", "Ghost": "White", "Frog": "Green"
@@ -36,13 +38,18 @@ COLLECTIONS = {
 }
 
 done = set()
-print("🎯 Охота...")
-send_tg("✅ Бот в сети (90 строк)!")
+last_ping = time.time()
+print("🎯 Охота в диапазоне 4-80 TON...")
+send_tg(f"✅ Бот запущен! Ищу лоты от {MIN_PRICE} до {MAX_PRICE} TON")
 
 while True:
+    if time.time() - last_ping > 900:
+        send_tg("🕵️ Снайпер в засаде... Пока ничего в диапазоне 4-80 не нашел.")
+        last_ping = time.time()
+
     for col_addr, col_type in COLLECTIONS.items():
         try:
-            link = f"https://tonapi.io/v2/nfts/collections/{col_addr}/items?limit=35"
+            link = f"https://tonapi.io/v2/nfts/collections/{col_addr}/items?limit=40"
             req = urllib.request.Request(link)
             req.add_header('Authorization', f'Bearer {API_KEY.strip()}')
             with urllib.request.urlopen(req) as r:
@@ -61,27 +68,23 @@ while True:
                     
                     find = False
                     reason = ""
+                    # Проверка монохрома (без лимита цены)
                     if col_type == "GIFT":
                         bg = next((a['value'] for a in attrs if 'background' in a['trait_type'].lower()), "")
                         model = next((a['value'] for a in attrs if 'model' in a['trait_type'].lower()), "")
                         if model in MONO and MONO[model] == bg:
                             find = True
                             reason = f"🎨 <b>МОНОХРОМ ({model})</b>"
-                        elif price <= MAX_PRICE_GIFT:
-                            find = True
-                            reason = "📉 <b>ДЕШЕВЫЙ ПОДАРОК</b>"
-                    elif col_type == "NUMBER":
-                        if is_cool_num(name):
-                            find = True
-                            reason = "🎰 <b>КРАСИВЫЙ НОМЕР</b>"
-                        elif price <= MAX_PRICE_NUM:
-                            find = True
-                            reason = "📉 <b>ДЕШЕВЫЙ НОМЕР</b>"
+                    
+                    # Проверка по диапазону цены
+                    if not find and MIN_PRICE <= price <= MAX_PRICE:
+                        find = True
+                        reason = "💰 <b>ВЫГОДНАЯ ЦЕНА</b>"
+
                     if find:
                         msg = f"{reason}\n📦 {name}\n💰 {price} TON\n<a href='{m_url}'>КУПИТЬ</a>"
                         send_tg(msg, img)
                         done.add(addr)
+            time.sleep(2)
         except Exception as e: print(f"Пауза: {e}")
-    time.sleep(35)
-
-# Строка 90 (пустой коммент для ровного счета)
+    time.sleep(40)
