@@ -1,178 +1,89 @@
-import asyncio
-import aiohttp
-import json
-import urllib.parse
-from aiogram import Bot, Dispatcher
+import urllib.request, json, time, urllib.parse
 
 # ================= НАСТРОЙКИ =================
 TOKEN = "8753959037:AAGqeA55UteuX6nc6i3W9lsqzT8IZ2quoi0"
-MY_ID = 8014629371 # Твой ID цифрами
-TONAPI_KEY = "AHN54X4JUOBUMUQAAAAFZM7B77G4OYWHOBW5XLORTEBJXXD2HYJQVNDF5KLSDUUHSLFFN5Y"
+MY_ID = 8014629371  # Твой ID
+API_KEY = "AHN54X4JUOBUMUQAAAAFZM7B77G4OYWHOBW5XLORTEBJXXD2HYJQVNDF5KLSDUUHSLFFN5Y"
 
-# Инициализируем бота максимально просто
-bot = Bot(token=TOKEN)
-dp = Dispatcher()
-        "name": "Telegram Gifts", 
-        "type": "nft", 
-        "max_price": 50.0
-    },
-    "EQAOZ_S_96p-In9V86XfM4S68-E9Y8T6T-6_6_6_6_6_6_6_6": {
-        "name": "Anonymous Numbers", 
-        "type": "numbers", 
-        "max_price": 20.0
-    }
+# Цены и Монохромы
+MAX_GIFT_PRICE = 60.0
+MONO_LIST = {
+    "Duck": "Yellow", "Skull": "Gray", "Santa": "Red", 
+    "Alien": "Green", "Lollipop": "Pink", "Ghost": "White"
 }
+
+COL_GIFTS = "EQCA14o1-V_6V7IInW57S7x1yX4Kde000000000000000000"
+COL_NUMS = "EQAOZ_S_96p-In9V86XfM4S68-E9Y8T6T-6_6_6_6_6_6_6_6"
 # =============================================
 
-# Инициализация бота (aiogram 3.x)
-bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-dp = Dispatcher()
-
-def is_cool_number(name: str) -> bool:
-    """
-    Фильтрация крутых номеров +888.
-    Ищет 4 одинаковые цифры подряд или зеркальные номера.
-    """
-    num = name.replace("+888", "").replace(" ", "")
-    if len(num) < 8: 
-        return False
-    
-    # 1. Поиск 4 одинаковых цифр подряд (например, 7777)
-    if any(str(i)*4 in num for i in range(10)):
-        return True
-    
-    # 2. Проверка на зеркалку (палиндром, читается одинаково туда и обратно)
-    if num == num[::-1]:
-        return True
+def send_tg(txt, photo=None):
+    try:
+        # Если есть фото, отправляем его, если нет — просто текст
+        if photo:
+            url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
+            params = {'chat_id': MY_ID, 'photo': photo, 'caption': txt, 'parse_mode': 'HTML'}
+        else:
+            url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+            params = {'chat_id': MY_ID, 'text': txt, 'parse_mode': 'HTML'}
         
-    return False
+        data = urllib.parse.urlencode(params).encode()
+        urllib.request.urlopen(url, data=data)
+    except Exception as e:
+        print(f"Ошибка отправки: {e}")
 
-def is_monochrome(attributes: list) -> tuple[bool, str]:
-    """
-    Логика проверки монохромов.
-    Сравнивает атрибуты фона и объекта.
-    Здесь находится заглушка (словарь MATCHES), куда ты можешь
-    добавлять ID цветов или названия визуальных стилей.
-    """
-    # ЗАГЛУШКА ИД ЦВЕТОВ (Модель: Визуальный стиль/Фон)
-    MATCHES = {
-        "Duck": "Yellow",
-        "Skull": "Gray",
-        "Alien": "Green",
-        "Lollipop": "Pink"
-    }
-    
-    bg_color = ""
-    model_name = ""
-    
-    for attr in attributes:
-        trait = attr.get('trait_type', '').lower()
-        val = attr.get('value', '')
-        
-        if 'background' in trait or 'backdrop' in trait:
-            bg_color = val
-        elif 'model' in trait or 'color' in trait:
-            model_name = val
-            
-    # Если модель есть в нашей базе и ее фон совпадает с эталонным
-    if model_name in MATCHES and MATCHES[model_name] == bg_color:
-        return True, f"{model_name} + {bg_color}"
-        
-    return False, ""
+def check_cool_num(name):
+    n = name.replace("+888","").replace(" ","")
+    return any(str(i)*3 in n for i in range(10))
 
-async def fetch_market(session: aiohttp.ClientSession):
-    """
-    Асинхронная фоновая задача для мониторинга рынка.
-    """
-    processed = set()
-    await bot.send_message(MY_ID, "🚀 <b>Асинхронный снайпер запущен!</b>\nМониторю все маркеты (GetGems, Fragment, Portal, MRKT).")
-    
-    while True:
-        for col_address, config in COLLECTIONS.items():
-            url = f"https://tonapi.io/v2/nfts/collections/{col_address}/items?limit=40"
-            headers = {"Authorization": f"Bearer {TONAPI_KEY}"}
-            
-            try:
-                async with session.get(url, headers=headers) as resp:
-                    if resp.status != 200:
-                        continue
+print("🚀 СНАЙПЕР ЗАПУЩЕН (БЕЗ БИБЛИОТЕК)...")
+send_tg("✅ <b>Снайпер активен!</b>\nРаботаю на прямых запросах.")
+done = set()
+
+while True:
+    for col in [COL_GIFTS, COL_NUMS]:
+        try:
+            req = urllib.request.Request(f"https://tonapi.io/v2/nfts/collections/{col}/items?limit=40")
+            req.add_header('Authorization', f'Bearer {API_KEY}')
+            with urllib.request.urlopen(req) as r:
+                items = json.loads(r.read().decode()).get('nft_items', [])
+                for i in items:
+                    addr = i.get('address')
+                    sale = i.get('sale')
+                    meta = i.get('metadata', {})
+                    if sale and addr not in done:
+                        price = float(sale.get('price',{}).get('value',0))/10**9
+                        if price > 1000: continue # Защита от мусора
                         
-                    data = await resp.json()
-                    items = data.get('nft_items', [])
-                    
-                    for item in items:
-                        addr = item.get('address')
-                        sale = item.get('sale')
-                        
-                        if not sale or addr in processed:
-                            continue
-                            
-                        price = float(sale.get('price', {}).get('value', 0)) / 10**9
-                        if price > config["max_price"]:
-                            continue
-                            
-                        # Парсинг метаданныхmeta = item.get('metadata', {})
-                        name = meta.get('name', 'Без названия')
-                        image_url = meta.get('image', '')
+                        name = meta.get('name', '')
+                        img = meta.get('image', '')
                         attrs = meta.get('attributes', [])
                         
-                        # Парсинг площадки
-                        market = sale.get('marketplace', {})
-                        m_name = market.get('name', 'Unknown Market').upper()
-                        m_url = market.get('url', f"https://fragment.com/nft/{addr}")
+                        m_name = sale.get('marketplace', {}).get('name', 'MARKET').upper()
+                        m_url = sale.get('marketplace', {}).get('url', f"https://fragment.com/nft/{addr}")
                         
                         is_target = False
-                        alert_reason = ""
-                        
-                        # --- ФИЛЬТРЫ ---
-                        if config["type"] == "nft":
-                            mono_check, mono_info = is_monochrome(attrs)
-                            if mono_check:
+                        msg_type = ""
+
+                        if col == COL_GIFTS and price <= MAX_GIFT_PRICE:
+                            bg = next((a['value'] for a in attrs if 'background' in a['trait_type'].lower()), "")
+                            model = next((a['value'] for a in attrs if 'model' in a['trait_type'].lower()), "")
+                            if model in MONO_LIST and MONO_LIST[model] == bg:
                                 is_target = True
-                                alert_reason = f"🎨 <b>РЕДКИЙ МОНОХРОМ! ({mono_info})</b>"
-                            elif price < 5.0: # Порог жесткой дешевизны
-                                is_target = True
-                                alert_reason = "📉 <b>ОЧЕНЬ НИЗКАЯ ЦЕНА!</b>"
-                                
-                        elif config["type"] == "numbers":
-                            if is_cool_number(name):
-                                is_target = True
-                                alert_reason = "🎰 <b>КРУТОЙ НОМЕР!</b>"
+                                msg_type = f"🎨 <b>МОНОХРОМ! ({model})</b>"
                             elif price < 3.0:
                                 is_target = True
-                                alert_reason = "📉 <b>НОМЕР НИЖЕ РЫНКА!</b>"
-                                
-                        # --- ОТПРАВКА ---
+                                msg_type = "📉 <b>ДЕШЕВЫЙ ПОДАРОК!</b>"
+
+                        elif col == COL_NUMS and price <= 20.0:
+                            if check_cool_num(name):
+                                is_target = True
+                                msg_type = "🎰 <b>КРУТОЙ НОМЕР!</b>"
+
                         if is_target:
-                            processed.add(addr)
-                            msg = (f"{alert_reason}\n\n"
-                                   f"📦 Предмет: <b>{name}</b>\n"
-                                   f"💰 Цена: <b>{price} TON</b>\n"
-                                   f"🏬 Площадка: <code>{m_name}</code>\n\n"
-                                   f"<a href='{m_url}'>👉 КУПИТЬ НА {m_name}</a>")
-                            
-                            # Если есть картинка, отправляем её вместе с текстом
-                            if image_url:
-                                await bot.send_photo(chat_id=MY_ID, photo=image_url, caption=msg)
-                            else:
-                                await bot.send_message(chat_id=MY_ID, text=msg)
-                                
-                            print(f"✅ Найден лот: {name} за {price} TON на {m_name}")
-                            
-            except Exception as e:
-                print(f"❌ Ошибка парсинга: {e}")
-                
-        await asyncio.sleep(15) # Пауза между кругами
-
-async def main():
-    """
-    Главная точка входа. Запускает aiohttp сессию и поллинг бота.
-    """
-    async with aiohttp.ClientSession() as session:
-        # Запускаем фоновый мониторинг
-        asyncio.create_task(fetch_market(session))
-        # Запускаем самого бота
-        await dp.start_polling(bot)
-
-if name == "main":
-    asyncio.run(main())
+                            text = (f"{msg_type}\n\n📦 {name}\n💰 Цена: <b>{price} TON</b>\n"
+                                    f"🏬 Маркет: {m_name}\n\n<a href='{m_url}'>👉 КУПИТЬ</a>")
+                            send_tg(text, img)
+                            done.add(addr)
+        except Exception as e:
+            print(f"Ошибка круга: {e}")
+    time.sleep(15)
