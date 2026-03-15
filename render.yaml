@@ -1,7 +1,0 @@
-services:
-  - type: web
-    name: my-ton-bot
-    env: python
-    plan: free
-    buildCommand: pip install requests
-    startCommand: python main.py
