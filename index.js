@@ -9,7 +9,7 @@ let doneEv = new Set();
 
 async function sendTg(txt, img) {
     const method = img ? 'sendPhoto' : 'sendMessage';
-    const url = https://api.telegram.org/bot${TOKEN}/${method};
+  const url = https://api.telegram.org/bot${TOKEN}/${method};
     const data = img ? { chat_id: MY_ID, photo: img, caption: txt, parse_mode: 'HTML' } 
                      : { chat_id: MY_ID, text: txt, parse_mode: 'HTML' };
     try { await axios.post(url, data); } catch (e) { console.error("TG Error"); }
