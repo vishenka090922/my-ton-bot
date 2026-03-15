@@ -82,6 +82,6 @@ while True:
                         send_tg(msg, img)
                         done.add(addr)
         except Exception as e: print(f"Пауза: {e}")
-    time.sleep(20)
+    time.sleep(35)
 
 # Строка 90 (пустой коммент для ровного счета)
