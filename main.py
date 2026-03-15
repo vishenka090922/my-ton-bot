@@ -85,6 +85,6 @@ while True:
                         msg = f"{reason}\n📦 {name}\n💰 {price} TON\n<a href='{m_url}'>КУПИТЬ</a>"
                         send_tg(msg, img)
                         done.add(addr)
-            time.sleep(2)
+            time.sleep(5)
         except Exception as e: print(f"Пауза: {e}")
-    time.sleep(40)
+    time.sleep(60)
