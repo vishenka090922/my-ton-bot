@@ -4,7 +4,6 @@ import urllib.request, json, time, urllib.parse
 TOKEN = "8753959037:AAGqeA55UteuX6nc6i3W9lsqzT8IZ2quoi0"
 MY_ID = 8014629371 
 API_KEY = "AHN54X4JUOBUMUQAAAAFZM7B77G4OYWHOBW5XLORTEBJXXD2HYJQVNDF5KLSDUUHSLFFN5Y"
-
 COL_ADDR = "EQCA14o1-V_6V7IInW57S7x1yX4Kde000000000000000000"
 
 def send_tg(txt, photo=None):
@@ -16,38 +15,48 @@ def send_tg(txt, photo=None):
         urllib.request.urlopen(u, data=data, timeout=10)
     except: pass
 
-done = set()
-send_tg("🔔 <b>Режим «ВСЕ NFT» включен!</b>\nБуду присылать каждый новый лот из коллекции Gifts.")
+done_ev = set()
+send_tg("🚀 <b>Снайпер переведен в режим LIVE!</b>\nЛовлю моменты выставления лотов...")
 
 while True:
     try:
-        # Берем последние 20 выставленных предметов
-        req = urllib.request.Request(f"https://tonapi.io/v2/nfts/collections/{COL_ADDR}/items?limit=20")
+        # Запрашиваем последние СОБЫТИЯ коллекции (самый быстрый метод)
+        url = f"https://tonapi.io/v2/nfts/collections/{COL_ADDR}/history?limit=20"
+        req = urllib.request.Request(url)
         req.add_header('Authorization', f'Bearer {API_KEY.strip()}')
         
         with urllib.request.urlopen(req, timeout=15) as r:
-            items = json.loads(r.read().decode()).get('nft_items', [])
-            for i in items:
-                addr, sale = i.get('address'), i.get('sale')
-                # Если лот не на продаже или мы его уже видели - скипаем
-                if not sale or addr in done: continue
+            events = json.loads(r.read().decode()).get('events', [])
+            for ev in events:
+                eid = ev.get('event_id')
+                if eid in done_ev: continue
                 
-                price = float(sale.get('price', {}).get('value', 0)) / 10**9
-                meta = i.get('metadata', {})
-                name = meta.get('name', 'NFT Gift')
-                img = meta.get('image', '')
+                for act in ev.get('actions', []):
+                    # Нас интересует только начало продажи
+                    if act.get('type') == 'NftSaleStart':
+                        data = act.get('NftSaleStart', {})
+                        nft = data.get('nft', {})
+                        price = float(data.get('price', {}).get('value', 0)) / 10**9
+                        
+                        # Если цена в нашем диапазоне (или убери условие, чтобы видеть ВСЕ)
+                        if price <= 150.0: 
+                            meta = nft.get('metadata', {})
+                            name = meta.get('name', 'NFT Gift')
+                            img = meta.get('image', '')
+                            
+                            # Ссылка прямо в Telegram
+                            clean_name = name.replace(" ", "-").replace("#", "")
+                            tg_url = f"https://t.me/nft/{clean_name}"
+                            
+                            msg = f"⚡️ <b>ЛОТ ВЫСТАВЛЕН!</b>\n\n📦 {name}\n💰 <b>{price} TON</b>\n\n<a href='{tg_url}'>🛒 КУПИТЬ</a>"
+                            send_tg(msg, img if img else None)
                 
-                # Формируем прямую ссылку на Telegram
-                url = f"https://t.me/nft/{name.replace(' ', '-').replace('#', '')}"
-                
-                msg = f"🆕 <b>НОВЫЙ ЛОТ НА РЫНКЕ</b>\n\n📦 {name}\n💰 <b>{price} TON</b>\n\n<a href='{url}'>🛒 КУПИТЬ В TELEGRAM</a>"
-                
-                send_tg(msg, img if img else None)
-                done.add(addr)
+                done_ev.add(eid)
+                # Чистим память, чтобы бот не тормозил
+                if len(done_ev) > 500: done_ev.clear() 
                 
     except Exception as e:
-        print(f"Ошибка: {e}")
-        time.sleep(10)
+        print(f"Error: {e}")
+        time.sleep(5)
 
-    # Пауза 30 секунд между проверками, чтобы не забанили
-    time.sleep(30)
+    time.sleep(5) # Проверка каждые 5 секунд
